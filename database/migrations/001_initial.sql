@@ -1,17 +1,26 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 DO $$ BEGIN
-  CREATE TYPE location_zone AS ENUM ('HALL_OF_RESIDENCE', 'LECTURE_THEATRE', 'FACULTY', 'COMMON_AREA', 'TRANSIT_ROUTE');
+  CREATE TYPE location_zone AS ENUM (
+    'HALL_OF_RESIDENCE', 'LECTURE_THEATRE', 'FACULTY', 'COMMON_AREA', 'TRANSIT_ROUTE'
+  );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 DO $$ BEGIN
   CREATE TYPE item_type AS ENUM ('LOST', 'FOUND');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 DO $$ BEGIN
-  CREATE TYPE item_category AS ENUM ('ELECTRONICS', 'ID_CARDS_DOCUMENTS', 'CLOTHING_ACCESSORIES', 'KEYS', 'BOOKS', 'OTHER');
+  CREATE TYPE item_category AS ENUM (
+    'ELECTRONICS', 'ID_CARDS_DOCUMENTS', 'CLOTHING_ACCESSORIES', 'KEYS', 'BOOKS', 'OTHER'
+  );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 DO $$ BEGIN
   CREATE TYPE item_status AS ENUM ('OPEN', 'CLAIM_PENDING', 'RESOLVED');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 DO $$ BEGIN
   CREATE TYPE claim_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -51,8 +60,11 @@ CREATE TABLE IF NOT EXISTS items (
   date_event_occurred TIMESTAMPTZ NOT NULL,
   image_urls TEXT[] NOT NULL DEFAULT '{}',
   status item_status NOT NULL DEFAULT 'OPEN',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS claims (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,8 +80,27 @@ CREATE INDEX IF NOT EXISTS items_reporter_id_idx ON items(reporter_id);
 CREATE INDEX IF NOT EXISTS items_location_id_idx ON items(location_id);
 CREATE INDEX IF NOT EXISTS items_status_created_idx ON items(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS items_type_category_idx ON items(type, category);
+CREATE INDEX IF NOT EXISTS items_title_search_idx ON items USING GIN (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS items_description_search_idx ON items USING GIN (description gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS claims_item_id_idx ON claims(item_id);
 CREATE INDEX IF NOT EXISTS claims_claimant_id_idx ON claims(claimant_id);
 CREATE INDEX IF NOT EXISTS claims_status_idx ON claims(status);
-CREATE UNIQUE INDEX IF NOT EXISTS claims_one_pending_per_user_item_idx ON claims(item_id, claimant_id) WHERE status = 'PENDING';
-CREATE UNIQUE INDEX IF NOT EXISTS claims_one_approved_per_item_idx ON claims(item_id) WHERE status = 'APPROVED';
+CREATE UNIQUE INDEX IF NOT EXISTS claims_one_pending_per_user_item_idx
+  ON claims(item_id, claimant_id) WHERE status = 'PENDING';
+CREATE UNIQUE INDEX IF NOT EXISTS claims_one_approved_per_item_idx
+  ON claims(item_id) WHERE status = 'APPROVED';
+
+-- Configure the public image bucket when this migration runs in Supabase.
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NOT NULL THEN
+    EXECUTE $sql$
+      INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+      VALUES ('item-images', 'item-images', TRUE, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+      ON CONFLICT (id) DO UPDATE SET
+        public = EXCLUDED.public,
+        file_size_limit = EXCLUDED.file_size_limit,
+        allowed_mime_types = EXCLUDED.allowed_mime_types
+    $sql$;
+  END IF;
+END $$;

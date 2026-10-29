@@ -1,24 +1,22 @@
-# Frontend-Backend API Contract Specification
+# Frontend–Backend API Contract Specification
 
 **Project:** OAU Campus Lost & Found Backend
+**Base URL:** `https://api.oaulostandfound.com/v1`
+**Authentication:** Send `Authorization: Bearer <JWT>` for authenticated endpoints.
+**Content type:** JSON requests use `Content-Type: application/json`.
+**Response envelope:** Successful responses use `{"success":true,"data":...}` and failures use `{"success":false,"error":{"code":"...","message":"..."}}`. A `message` may also accompany successful responses.
 
-**Base URL:** `[https://api.oaulostandfound.com/v1](https://api.oaulostandfound.com/v1)`
+All timestamps are ISO 8601 UTC. UUIDs are represented as strings. The server derives the acting user from the bearer token; clients must not send `reporter_id` or `claimant_id` as authority.
 
-**Authentication:** HTTP Bearer Token (`Authorization: Bearer <JWT>`)
+## 1. Authentication and student verification (`/auth`)
 
-**Response Format:** Standard JSON wrapper `{"success": true|false, "data": ..., "error": ...}`
+### 1.1 Register student account
 
----
+`POST /auth/register` — No authentication required.
 
-## 1. Authentication & Student Verification (`/auth`)
+Creates an `UNVERIFIED` account and sends an activation link to an email whose domain is exactly `student.oauife.edu.ng` or `oauife.edu.ng`. Personal email domains are rejected. The activation token is signed, single-use, and time-limited; its lifetime is configured by the service.
 
-### 1.1 Register Student Account
-
-* **Endpoint:** `POST /auth/register`
-* **Auth Required:** No
-* **Description:** Creates an unverified student account and dispatches an activation link to the provided `@student.oauife.edu.ng` or `@oauife.edu.ng` address.
-
-#### Request Body
+Request body:
 
 ```json
 {
@@ -30,167 +28,97 @@
   "department": "Computer Science & Engineering",
   "password": "SecurePassword123!"
 }
-
 ```
 
-#### Responses
+`201 Created` returns `user_id` and `email`; it never returns the password or password hash. `400 INVALID_EMAIL_DOMAIN` indicates a disallowed domain. Other expected errors include `400 VALIDATION_ERROR` and `409 EMAIL_ALREADY_REGISTERED` / `409 MATRIC_NUMBER_ALREADY_REGISTERED`.
 
-* `201 Created`: Account initialized; email verification sent.
+### 1.2 Verify email
+
+`GET /auth/verify-email?token=<verification-token>` — No authentication required.
+
+Activates the account when the token is valid, unexpired, and unused. `200 OK` confirms activation. `400 INVALID_OR_EXPIRED_TOKEN` is returned for an invalid, expired, or already-used token. The token is consumed on success.
+
+### 1.3 Student login
+
+`POST /auth/login` — No authentication required.
+
+Request body:
 
 ```json
-{
-  "success": true,
-  "message": "Registration successful. Please check your OAU email to verify your account.",
-  "data": {
-    "user_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-    "email": "francisf@student.oauife.edu.ng"
-  }
-}
-
+{ "email": "francisf@student.oauife.edu.ng", "password": "SecurePassword123!" }
 ```
 
-* `400 Bad Request`: Invalid institutional email or phone number format.
+`200 OK` returns a JWT and a safe user summary (`id`, `full_name`, `email`, `department`). `401 INVALID_CREDENTIALS` covers an incorrect email/password. `403 ACCOUNT_UNVERIFIED` means the account must be activated before login. JWT expiry and renewal behavior are determined by the service configuration.
+
+## 2. Supabase Storage image uploads (`/uploads`)
+
+Item images are stored in a Supabase Storage bucket configured for public read access. The bucket name and allowed image MIME types / maximum file size are deployment configuration. The backend uses server-side Supabase credentials to mint upload permissions; the mobile app must never receive a Supabase service-role key.
+
+### 2.1 Create a signed upload
+
+`POST /uploads/sign` — Authentication required.
+
+Creates a unique object path scoped to the authenticated user and returns short-lived signed upload credentials. Request one upload per image.
+
+Request body:
 
 ```json
-{
-  "success": false,
-  "error": {
-    "code": "INVALID_EMAIL_DOMAIN",
-    "message": "Registration is restricted to verified OAU student emails (@student.oauife.edu.ng or @oauife.edu.ng)."
-  }
-}
-
+{ "file_name": "charger.jpg", "content_type": "image/jpeg" }
 ```
 
----
-
-### 1.2 Verify Email Address
-
-* **Endpoint:** `GET /auth/verify-email`
-* **Query Parameters:** `token` (String, required)
-* **Auth Required:** No
-* **Description:** Activates the user account when the verification link from the email is accessed.
-
-#### Responses
-
-* `200 OK`: Account activated.
-
-```json
-{
-  "success": true,
-  "message": "Email successfully verified. You can now log in."
-}
-
-```
-
-* `400 Bad Request`: Token expired or invalid.
-
----
-
-### 1.3 Student Login
-
-* **Endpoint:** `POST /auth/login`
-* **Auth Required:** No
-* **Description:** Authenticates active students and generates a bearer token.
-
-#### Request Body
-
-```json
-{
-  "email": "francisf@student.oauife.edu.ng",
-  "password": "SecurePassword123!"
-}
-
-```
-
-#### Responses
-
-* `200 OK`: Authentication successful.
+`201 Created`:
 
 ```json
 {
   "success": true,
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-      "full_name": "Francis Faniku",
-      "email": "francisf@student.oauife.edu.ng",
-      "department": "Computer Science & Engineering"
-    }
+    "bucket": "item-images",
+    "path": "users/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d/7f18f3a0-charger.jpg",
+    "token": "<short-lived-upload-token>",
+    "expires_in": 7200,
+    "public_url": "https://<project>.supabase.co/storage/v1/object/public/item-images/users/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d/7f18f3a0-charger.jpg"
   }
 }
-
 ```
 
-* `401 Unauthorized`: Unverified account or incorrect password.
+The Android client uploads the file bytes directly to Supabase Storage using the Supabase Kotlin Storage SDK's `uploadToSignedUrl(path, token, data/file)` operation, with the returned bucket and path. Supabase signed upload tokens are valid for two hours and scoped to that object; they are not general storage credentials. On successful upload, pass `public_url` in `image_urls` when creating the item. If upload fails or the token expires, request a new signed upload. The bucket enforces a 5 MiB size limit and accepts JPEG, PNG, and WebP by default; the item API validates that supplied image URLs belong to the authenticated user's path in the configured bucket.
 
----
+`400 INVALID_FILE_TYPE` and `413 FILE_TOO_LARGE` are returned when configured upload constraints are violated. Supabase Storage may also reject the upload; the client should surface the upload failure and must not submit an item with URLs for files that did not upload.
 
-## 2. Item Reporting & Search (`/items`)
+## 3. Campus locations (`/locations`)
 
-### 2.1 Fetch Items Feed
+### 3.1 List preset locations
 
-* **Endpoint:** `GET /items`
-* **Auth Required:** Yes
-* **Query Parameters:**
-* `type` (Optional): `LOST` | `FOUND`
-* `category` (Optional): `ELECTRONICS` | `ID_CARDS_DOCUMENTS` | `CLOTHING_ACCESSORIES` | `KEYS` | `BOOKS` | `OTHER`
-* `location_id` (Optional): UUID of predefined zone
-* `search` (Optional): Search term string
-* `page` (Optional): Default `1`
-* `limit` (Optional): Default `20`
+`GET /locations` — Authentication required.
 
+Returns all selectable campus presets. Each location has `id`, `name`, and `zone`; zones are `HALL_OF_RESIDENCE`, `LECTURE_THEATRE`, `FACULTY`, `COMMON_AREA`, or `TRANSIT_ROUTE`. `200 OK` returns an array. These IDs are used as `location_id` on items and as the feed filter.
 
+## 4. Item reporting and search (`/items`)
 
-#### Responses
+Item types are `LOST` and `FOUND`. Categories are `ELECTRONICS`, `ID_CARDS_DOCUMENTS`, `CLOTHING_ACCESSORIES`, `KEYS`, `BOOKS`, and `OTHER`. Item statuses are `OPEN`, `CLAIM_PENDING`, and `RESOLVED`.
 
-* `200 OK`: Paginated list of item reports.
+### 4.1 Fetch item feed
 
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "e3a2b1c0-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
-        "type": "FOUND",
-        "category": "ELECTRONICS",
-        "title": "HP Laptop Charger (65W)",
-        "description": "Black HP smart AC adapter left on row 3.",
-        "location": {
-          "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-          "name": "1000 LT",
-          "zone": "LECTURE_THEATRE"
-        },
-        "custom_location": "Row 3 near the left exit door",
-        "date_event_occurred": "2026-10-21T14:30:00Z",
-        "image_urls": [
-          "https://cdn.oaulostandfound.com/uploads/img_10293.jpg"
-        ],
-        "status": "OPEN",
-        "created_at": "2026-10-21T15:00:00Z"
-      }
-    ],
-    "pagination": {
-      "total_items": 1,
-      "current_page": 1,
-      "total_pages": 1
-    }
-  }
-}
+`GET /items` — Authentication required.
 
-```
+Optional query parameters:
 
----
+| Parameter | Meaning |
+| --- | --- |
+| `type` | Filter by `LOST` or `FOUND`. |
+| `category` | Filter by one category enum. |
+| `location_id` | Filter by a preset location UUID. |
+| `search` | Case-insensitive keyword search over title and description. |
+| `page` | 1-based page number; default `1`. |
+| `limit` | Page size; default `20`; maximum `100`. |
 
-### 2.2 Report a Lost or Found Item
+Results are ordered newest first. Public item fields include item metadata, preset location (or `null`), `custom_location`, `image_urls`, status, and timestamps. Reporter phone and WhatsApp fields, claimant proof notes, and other users' private claim data are never included in feed results. `200 OK` returns `{ "items": [...], "pagination": {"total_items": 1, "current_page": 1, "total_pages": 1} }` in `data`.
 
-* **Endpoint:** `POST /items`
-* **Auth Required:** Yes
-* **Description:** Posts a new lost or found item.
+### 4.2 Report a lost or found item
 
-#### Request Body
+`POST /items` — Authentication required; the authenticated user becomes the reporter.
+
+Request body:
 
 ```json
 {
@@ -201,120 +129,80 @@
   "location_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
   "custom_location": "Row 3 near the left exit door",
   "date_event_occurred": "2026-10-21T14:30:00Z",
-  "image_urls": [
-    "https://cdn.oaulostandfound.com/uploads/img_10293.jpg"
-  ]
+  "image_urls": ["https://<project>.supabase.co/storage/v1/object/public/item-images/users/<user-id>/7f18f3a0-charger.jpg"]
 }
-
 ```
 
-#### Responses
+`location_id` may be omitted or `null` when the user only provides a custom location. `custom_location` is optional. `image_urls` may be an empty array and each URL must reference an uploaded object in the configured bucket. New items start as `OPEN`. `201 Created` returns the created item, including its `id` and `status`.
 
-* `201 Created`: Item successfully posted.
+### 4.3 Get item details
 
----
+`GET /items/:id` — Authentication required.
 
-## 3. Claim Lifecycle & Contact Handshake (`/claims`)
+Returns the item metadata. `contact_details` is `null` unless the requesting user is the claimant with an `APPROVED` claim for this item. For that claimant, it contains the reporter's `phone_number`, `whatsapp_number`, and a `whatsapp_link`. Contact data is never returned to feed callers or to the finder as part of reviewing their own claim. Other users' claim proofs are never included. Returns `404 ITEM_NOT_FOUND` when the ID does not exist.
 
-### 3.1 Submit Claim Request
+### 4.4 Mark an item resolved
 
-* **Endpoint:** `POST /items/:id/claim`
-* **Auth Required:** Yes
-* **Description:** A student submits proof of ownership for a reported item.
+`PATCH /items/:id/status` — Authentication required; only the item reporter may perform this action.
 
-#### Request Body
+Request body:
 
 ```json
-{
-  "proof_of_ownership": "The charger has a blue electrical tape wrapped around the joint near the connector jack."
-}
-
+{ "status": "RESOLVED" }
 ```
 
-#### Responses
+This records that the item has been returned/recovered and removes it from active results (unless a future API option explicitly requests resolved items). Only `RESOLVED` is accepted through this endpoint; clients cannot reopen an item or set `CLAIM_PENDING` directly. `200 OK` returns the updated status. The reporter may resolve an item after arranging the handoff. `403 NOT_ITEM_REPORTER` is returned when the requester is not the reporter; `409 ITEM_ALREADY_RESOLVED` when already resolved.
 
-* `201 Created`: Claim submitted; finder notified.
+## 5. Claim lifecycle and contact handshake (`/claims`)
+
+Claim status values are `PENDING`, `APPROVED`, and `REJECTED`. Proof notes are private: visible only to their claimant and the reporter of the related item.
+
+### 5.1 Submit a claim
+
+`POST /items/:id/claim` — Authentication required.
+
+The authenticated user submits proof of ownership for an active item. A user cannot claim their own item, submit another pending claim for the same item, or claim an item that is already resolved. Request body:
 
 ```json
-{
-  "success": true,
-  "message": "Claim request submitted successfully.",
-  "data": {
-    "claim_id": "f8e7d6c5-b4a3-2f1e-0d9c-8b7a6f5e4d3c",
-    "status": "PENDING"
-  }
-}
-
+{ "proof_of_ownership": "The charger has blue electrical tape around the joint near the connector jack." }
 ```
 
----
+`201 Created` returns `claim_id` and `status: "PENDING"`; the reporter is notified. The item moves from `OPEN` to `CLAIM_PENDING` while it has one or more pending claims. `404 ITEM_NOT_FOUND`, `403 CANNOT_CLAIM_OWN_ITEM`, `409 ITEM_NOT_OPEN`, and `409 PENDING_CLAIM_EXISTS` describe common failures.
 
-### 3.2 Review Claim Status (Finder Action)
+### 5.2 List claims for an item (finder review queue)
 
-* **Endpoint:** `PATCH /claims/:id/status`
-* **Auth Required:** Yes (Must be reporter of the associated item)
-* **Description:** Approves or rejects a claimant's proof of ownership.
+`GET /items/:id/claims` — Authentication required; only the item reporter may call this endpoint.
 
-#### Request Body
+Returns claims for the item, newest first, including each claim's `id`, `claimant_id`, `proof_of_ownership`, `status`, and `created_at`. The reporter may see the proof so they can evaluate it; contact details are not included. Supports `page` and `limit` pagination with the same defaults and maximum as `GET /items`. Returns `403 NOT_ITEM_REPORTER` for anyone else.
+
+### 5.3 Get a claim and its status
+
+`GET /claims/:id` — Authentication required; accessible only to the claimant or the reporter of the associated item.
+
+Returns `claim_id`, `item_id`, `status`, and `created_at`. `proof_of_ownership` is returned only to the claimant and the reporter. This endpoint lets a claimant check whether their claim was approved or rejected. It does not reveal contact details; an approved claimant obtains those through `GET /items/:id`. Returns `404 CLAIM_NOT_FOUND` or `403 FORBIDDEN` as appropriate.
+
+### 5.4 Approve or reject a claim
+
+`PATCH /claims/:id/status` — Authentication required; only the reporter of the associated item may call this endpoint.
+
+Request body:
 
 ```json
-{
-  "status": "APPROVED"
-}
-
+{ "status": "APPROVED" }
 ```
 
-#### Responses
+`status` must be `APPROVED` or `REJECTED`. A claim can be decided only while `PENDING`; decisions are final. `200 OK` returns the claim ID and updated status. **This response never includes reporter contact details.** On approval, the approved claimant can retrieve contact details from `GET /items/:id`. On rejection, no contact is revealed. If no pending claims remain after a rejection, the item returns to `OPEN`; if any other pending claim remains, it stays `CLAIM_PENDING`. Approval leaves the item available for the reporter to mark `RESOLVED` after handoff. Returns `403 NOT_ITEM_REPORTER`, `404 CLAIM_NOT_FOUND`, or `409 CLAIM_ALREADY_DECIDED` when applicable.
 
-* `200 OK`: Status updated. When `APPROVED`, contact information is unlocked.
+## 6. Common errors and access rules
 
-```json
-{
-  "success": true,
-  "message": "Claim approved. Contact details unlocked for handshake.",
-  "data": {
-    "claim_id": "f8e7d6c5-b4a3-2f1e-0d9c-8b7a6f5e4d3c",
-    "status": "APPROVED",
-    "contact_details": {
-      "phone_number": "08123456789",
-      "whatsapp_number": "08123456789",
-      "whatsapp_link": "https://wa.me/2348123456789?text=Hello%20I%20am%20contacting%20you%20regarding%20the%20lost%20item"
-    }
-  }
-}
+| HTTP status | Example error code | Meaning |
+| --- | --- | --- |
+| `400` | `VALIDATION_ERROR` | Missing, malformed, or unsupported request value. |
+| `401` | `UNAUTHENTICATED` | Missing, invalid, or expired JWT. |
+| `403` | `FORBIDDEN` | Authenticated user lacks permission for the requested resource/action. |
+| `404` | `ITEM_NOT_FOUND`, `CLAIM_NOT_FOUND` | Requested resource does not exist or is not visible to the requester. |
+| `409` | `CONFLICT` | Request conflicts with the current resource state, such as duplicate registration or a decided claim. |
+| `413` | `FILE_TOO_LARGE` | Image exceeds the configured maximum. |
+| `500` | `INTERNAL_ERROR` | Unexpected server error; response must not expose secrets or stack traces. |
 
-```
-
----
-
-### 3.3 Get Item Details & Contact (For Approved Claimant)
-
-* **Endpoint:** `GET /items/:id`
-* **Auth Required:** Yes
-* **Description:** Returns item metadata. Contact details are `null` unless the requesting user has an `APPROVED` claim for this item.
-
----
-
-## 4. Campus Locations (`/locations`)
-
-### 4.1 Get OAU Preset Locations
-
-* **Endpoint:** `GET /locations`
-* **Auth Required:** Yes
-* **Description:** Lists all preset OAU zones for dropdown selection.
-
-#### Responses
-
-* `200 OK`:
-
-```json
-{
-  "success": true,
-  "data": [
-    { "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d", "name": "1000 LT", "zone": "LECTURE_THEATRE" },
-    { "id": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e", "name": "Fajuyi Hall", "zone": "HALL_OF_RESIDENCE" },
-    { "id": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f", "name": "SUB", "zone": "COMMON_AREA" }
-  ]
-}
-
-```
+Every authenticated endpoint requires a verified account. API responses must not expose `password_hash`, verification tokens, Supabase service credentials, or private claim notes to anyone except the claimant and the item's reporter.
