@@ -1,17 +1,16 @@
 ### OAU Campus Lost & Found API
-### Run the requests in order. Set .env, run the migration and seed, then start the API.
-### During development, the verification URL is printed in the API server log.
-### For the upload flow, upload the image to Supabase with the returned bucket/path/token,
-### then paste the returned public_url into @imageUrl below.
+### Set the account values and verification tokens below before running the requests.
+### Register each account, copy its verification token from the API server log, then verify and log in.
+### To upload an image, use the returned Supabase bucket/path/token, then copy public_url into @imageUrl.
 
 @baseUrl = http://localhost:3000/api/v1
-@reporterEmail = reporter@student.oauife.edu.ng
-@reporterPassword = ReporterPass123!
+@reporterEmail = fanikufran6@gmail.com
+@reporterPassword = SECURE_PASSWORD123!
 @reporterVerificationToken = paste-reporter-verification-token
 @claimantEmail = claimant@student.oauife.edu.ng
-@claimantPassword = ClaimantPass123!
+@claimantPassword = SECURE_PASSWORD123!
 @claimantVerificationToken = paste-claimant-verification-token
-@imageUrl =
+@imageUrl = paste-uploaded-public-url
 
 ### Health check
 GET http://localhost:3000/health
@@ -23,11 +22,11 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "full_name": "OAU Test Reporter",
+  "full_name": "Francis Faniku",
   "email": "{{reporterEmail}}",
-  "phone_number": "08030000001",
-  "whatsapp_number": "08030000001",
-  "matric_number": "TEST/2026/001",
+  "phone_number": "08103798511",
+  "whatsapp_number": "08103798511",
+  "matric_number": "CSC/2022/113",
   "department": "Computer Science & Engineering",
   "password": "{{reporterPassword}}"
 }
@@ -56,7 +55,7 @@ Content-Type: application/json
   "email": "{{claimantEmail}}",
   "phone_number": "08030000002",
   "whatsapp_number": "08030000002",
-  "matric_number": "TEST/2026/002",
+  "matric_number": "TEST/2026/02",
   "department": "Electrical and Electronics Engineering",
   "password": "{{claimantPassword}}"
 }
@@ -92,8 +91,8 @@ Content-Type: application/json
   "content_type": "image/jpeg"
 }
 
-### Upload the image with the Supabase SDK using signUpload.data.bucket, path, and token.
-### Set @imageUrl to signUpload.data.public_url after the storage upload succeeds.
+### Upload the image with Supabase using the returned bucket, path, and token.
+### Copy the resulting public_url into @imageUrl above before creating the item with an image.
 
 ### Create a found item as reporter
 # @name createItem
@@ -113,7 +112,6 @@ Content-Type: application/json
 }
 
 ### Create another item with an uploaded image URL (optional)
-### First upload an image using /uploads/sign, then replace @imageUrl with public_url.
 # @name createItemWithImage
 POST {{baseUrl}}/items
 Authorization: Bearer {{loginReporter.response.body.$.data.token}}
@@ -130,7 +128,7 @@ Content-Type: application/json
   "image_urls": ["{{imageUrl}}"]
 }
 
-### Search and paginate the active item feed
+### Search and paginate the active item feed as claimant
 # @name listItems
 GET {{baseUrl}}/items?type=FOUND&category=ELECTRONICS&location_id={{getLocations.response.body.$.data[0].id}}&search=charger&page=1&limit=20
 Authorization: Bearer {{loginClaimant.response.body.$.data.token}}
@@ -152,19 +150,19 @@ Content-Type: application/json
   "proof_of_ownership": "The charger has blue electrical tape around the joint near the connector jack, and it is the 65W adapter I used in the lecture theatre."
 }
 
-### List claims for the item as reporter (includes private proof note)
+### List claims for the item as reporter
 # @name listItemClaims
 GET {{baseUrl}}/items/{{createItem.response.body.$.data.id}}/claims?page=1&limit=20
 Authorization: Bearer {{loginReporter.response.body.$.data.token}}
 Accept: application/json
 
-### Get claim details/status as the claimant
+### Get claim details/status as claimant
 # @name getClaim
 GET {{baseUrl}}/claims/{{submitClaim.response.body.$.data.claim_id}}
 Authorization: Bearer {{loginClaimant.response.body.$.data.token}}
 Accept: application/json
 
-### Approve the claim as reporter (this response does not reveal contact details)
+### Approve the claim as reporter
 # @name approveClaim
 PATCH {{baseUrl}}/claims/{{submitClaim.response.body.$.data.claim_id}}/status
 Authorization: Bearer {{loginReporter.response.body.$.data.token}}
@@ -207,7 +205,7 @@ Content-Type: application/json
   "image_urls": []
 }
 
-### Submit a second claim as claimant
+### Submit a claim as claimant for the rejection flow
 # @name submitClaimForRejection
 POST {{baseUrl}}/items/{{createItemForRejection.response.body.$.data.id}}/claim
 Authorization: Bearer {{loginClaimant.response.body.$.data.token}}
@@ -217,7 +215,7 @@ Content-Type: application/json
   "proof_of_ownership": "My keyring has a small red plastic tag and three keys attached."
 }
 
-### Reject the second claim as reporter
+### Reject the claim as reporter
 # @name rejectClaim
 PATCH {{baseUrl}}/claims/{{submitClaimForRejection.response.body.$.data.claim_id}}/status
 Authorization: Bearer {{loginReporter.response.body.$.data.token}}

@@ -16,9 +16,23 @@ function createTransport() {
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
   const ttlHours = Number(process.env.VERIFICATION_TOKEN_TTL_HOURS) || 24;
-  const frontendUrl = process.env.FRONTEND_VERIFICATION_URL;
-  const baseUrl = frontendUrl || `${process.env.APP_BASE_URL || 'http://localhost:3000'}/api/v1/auth/verify-email`;
-  const verificationUrl = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+  // const frontendUrl = process.env.FRONTEND_VERIFICATION_URL;
+  const baseUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/v1/auth/verify-email`;
+  let verificationUrl = baseUrl;
+  if (baseUrl.includes('?')) {
+    verificationUrl += '&';
+  } else {
+    verificationUrl += '?';
+  }
+  // encodeURIComponent is used to ensure that the token is safely included in
+  // the URL, especially if it contains special characters. This prevents issues
+  // with URL parsing and ensures that the token is transmitted correctly.
+
+  // Some characters have special meaning in URLs—such as &, ?, and =.
+  // Encoding replaces those characters with percent-encoded forms so
+  // the token is treated as one parameter value, not as part of the
+  // URL’s structure.
+  verificationUrl += `token=${encodeURIComponent(token)}`;
   const transporter = createTransport();
 
   if (!transporter) {

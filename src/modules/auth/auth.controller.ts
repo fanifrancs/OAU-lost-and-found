@@ -22,9 +22,9 @@ export async function registerHandler(req: Request, res: Response): Promise<void
     }
 
     const { full_name, email, phone_number, whatsapp_number, matric_number, department, password } = req.body;
-    if (!stringValue(full_name, 2, 160) || !stringValue(email, 3, 254) || !stringValue(phone_number, 11, 20)
-      || !stringValue(whatsapp_number, 11, 20) || !stringValue(matric_number, 3, 40)
-      || !stringValue(department, 2, 160) || !stringValue(password, 10, 128)) {
+    if (!stringValue(full_name, 6, 160) || !stringValue(email, 14, 254) || !stringValue(phone_number, 11, 11)
+      || !stringValue(whatsapp_number, 11, 20) || !stringValue(matric_number, 12, 12)
+      || !stringValue(department, 2, 160) || !stringValue(password, 8, 128)) {
       res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'All registration fields must be provided with valid lengths.' } });
       return;
     }
@@ -57,7 +57,12 @@ export async function registerHandler(req: Request, res: Response): Promise<void
   } catch (error) {
     const code = errorCode(error);
     if (code === '23505') {
-      const constraint = 'constraint' in (error as object) ? String((error as { constraint?: string }).constraint) : '';
+      let constraint = '';
+      if ('constraint' in (error as object)) {
+        constraint = String((error as { constraint?: string }).constraint);
+      } else {
+        constraint = '';
+      }
       const matricConflict = constraint.includes('matric');
       res.status(409).json({ success: false, error: { code: matricConflict ? 'MATRIC_NUMBER_ALREADY_REGISTERED' : 'EMAIL_ALREADY_REGISTERED', message: matricConflict ? 'This matric number is already registered.' : 'This email address is already registered.' } });
       return;
@@ -74,11 +79,13 @@ export async function verifyEmailHandler(req: Request, res: Response): Promise<v
       res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'A valid verification token is required.' } });
       return;
     }
+
     const verified = await verifyStudentEmail(token);
     if (!verified) {
       res.status(400).json({ success: false, error: { code: 'INVALID_OR_EXPIRED_TOKEN', message: 'The verification token is invalid, expired, or already used.' } });
       return;
     }
+
     res.status(200).json({ success: true, message: 'Email successfully verified. You can now log in.' });
   } catch (error) {
     console.error('Verify email error:', error);
@@ -88,10 +95,11 @@ export async function verifyEmailHandler(req: Request, res: Response): Promise<v
 
 export async function loginHandler(req: Request, res: Response): Promise<void> {
   try {
-    if (!isObject(req.body) || !stringValue(req.body.email, 3, 254) || !stringValue(req.body.password, 1, 128)) {
+    if (!isObject(req.body) || !stringValue(req.body.email, 14, 254) || !stringValue(req.body.password, 1, 128)) {
       res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Email and password are required.' } });
       return;
     }
+
     const result = await loginStudent(req.body.email.trim().toLowerCase(), req.body.password);
     if (!result) {
       res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Email or password is incorrect.' } });
@@ -101,6 +109,7 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
       res.status(403).json({ success: false, error: { code: 'ACCOUNT_UNVERIFIED', message: 'Verify your OAU email before logging in.' } });
       return;
     }
+    
     res.status(200).json({ success: true, data: { token: result.token, user: result.user } });
   } catch (error) {
     console.error('Login error:', error);

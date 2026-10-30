@@ -18,7 +18,9 @@ const locations: ReadonlyArray<{ name: string; zone: string }> = [
 
 async function seed(): Promise<void> {
   for (const location of locations) {
-    await pool.query('INSERT INTO locations (name, zone) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING', [location.name, location.zone]);
+    const query = 'INSERT INTO locations (name, zone) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING';
+    const values = [location.name, location.zone];
+    await pool.query(query, values);
   }
   console.info(`Seeded ${locations.length} campus locations (existing names were preserved).`);
 }

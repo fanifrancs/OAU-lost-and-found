@@ -42,10 +42,9 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
       return;
     }
 
-    const result = await pool.query<{ id: string; email: string; is_verified: boolean }>(
-      'SELECT id, email, is_verified FROM users WHERE id = $1',
-      [decoded.sub],
-    );
+    const query = 'SELECT id, email, is_verified FROM users WHERE id = $1';
+    const values = [decoded.sub];
+    const result = await pool.query<{ id: string; email: string; is_verified: boolean }>(query, values);
     const user = result.rows[0];
     if (!user) {
       res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'The account for this token no longer exists.' } });
