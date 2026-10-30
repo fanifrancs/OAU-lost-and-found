@@ -16,7 +16,27 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
       return;
     }
 
+    // The middleware first checks that it starts with 'Bearer '. That prefix
+    // is 7 characters long (Bearer plus a space), so authorization.slice(7)
+    // removes it and returns just the token for jwt.verify(...).
     const decoded = jwt.verify(authorization.slice(7), secret);
+
+    // decoded is expected to be a payload object from a valid JWT,
+    // roughly like this:
+
+    //    {
+        //   email: 'student@oauife.edu.ng',
+        //   sub: 'user-id-here',
+        //   iat: 1793380000,
+        //   exp: 1793984800
+    //    }
+
+    // The login code sets email in the payload and the user ID as sub; iat
+    // and exp are added by the JWT library. The middleware checks that sub
+    // is a string because it uses that ID to look up the user in the database.
+    // A token that decodes to a string, or an object without a string sub,
+    // is rejected.
+    
     if (typeof decoded === 'string' || typeof decoded.sub !== 'string') {
       res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'The bearer token is invalid or expired.' } });
       return;

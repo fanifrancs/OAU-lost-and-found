@@ -17,7 +17,7 @@ function createTransport() {
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
   const ttlHours = Number(process.env.VERIFICATION_TOKEN_TTL_HOURS) || 24;
   const frontendUrl = process.env.FRONTEND_VERIFICATION_URL;
-  const baseUrl = frontendUrl || `${process.env.APP_BASE_URL || 'http://localhost:3000'}/v1/auth/verify-email`;
+  const baseUrl = frontendUrl || `${process.env.APP_BASE_URL || 'http://localhost:3000'}/api/v1/auth/verify-email`;
   const verificationUrl = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
   const transporter = createTransport();
 

@@ -1,6 +1,6 @@
 # OAU Campus Lost & Found API
 
-TypeScript/Express REST API backed by PostgreSQL. All API routes use the `/v1` prefix. Public item information requires a verified user's bearer JWT; reporter contact details are returned only to a claimant whose claim for that item has been approved.
+TypeScript/Express REST API backed by PostgreSQL. All API routes use the `/api/v1` prefix. Public item information requires a verified user's bearer JWT; reporter contact details are returned only to a claimant whose claim for that item has been approved.
 
 ## Requirements
 
@@ -21,25 +21,25 @@ In development, if SMTP is not configured, verification links are printed to the
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| POST | `/v1/auth/register` | No | Register an OAU email account |
-| GET | `/v1/auth/verify-email?token=...` | No | Verify email |
-| POST | `/v1/auth/login` | No | Sign in and receive JWT |
-| GET | `/v1/items` | Yes | Search and paginate item feed |
-| POST | `/v1/items` | Yes | Report a lost or found item |
-| GET | `/v1/items/:id` | Yes | Item detail; approved claimant contact reveal |
-| PATCH | `/v1/items/:id/status` | Yes | Reporter marks an item resolved |
-| POST | `/v1/items/:id/claim` | Yes | Submit ownership proof |
-| GET | `/v1/items/:id/claims` | Yes | Reporter lists claims and proof notes |
-| GET | `/v1/claims/:id` | Yes | Claimant/reporter gets claim status |
-| PATCH | `/v1/claims/:id/status` | Yes | Item reporter approves or rejects a claim |
-| GET | `/v1/locations` | Yes | Preset campus locations |
-| POST | `/v1/uploads/sign` | Yes | Create a scoped Supabase Storage upload token |
+| POST | `/api/v1/auth/register` | No | Register an OAU email account |
+| GET | `/api/v1/auth/verify-email?token=...` | No | Verify email |
+| POST | `/api/v1/auth/login` | No | Sign in and receive JWT |
+| GET | `/api/v1/items` | Yes | Search and paginate item feed |
+| POST | `/api/v1/items` | Yes | Report a lost or found item |
+| GET | `/api/v1/items/:id` | Yes | Item detail; approved claimant contact reveal |
+| PATCH | `/api/v1/items/:id/status` | Yes | Reporter marks an item resolved |
+| POST | `/api/v1/items/:id/claim` | Yes | Submit ownership proof |
+| GET | `/api/v1/items/:id/claims` | Yes | Reporter lists claims and proof notes |
+| GET | `/api/v1/claims/:id` | Yes | Claimant/reporter gets claim status |
+| PATCH | `/api/v1/claims/:id/status` | Yes | Item reporter approves or rejects a claim |
+| GET | `/api/v1/locations` | Yes | Preset campus locations |
+| POST | `/api/v1/uploads/sign` | Yes | Create a scoped Supabase Storage upload token |
 | GET | `/health` | No | Health check |
 
 All errors use `{ "success": false, "error": { "code": "...", "message": "..." } }`. Request bodies use JSON. Phone and WhatsApp numbers are stored and returned in the local Nigerian format entered by the student.
 
 ## Notes
 
-- Item images use the public `item-images` Supabase Storage bucket. Request a signed token from `/v1/uploads/sign`, upload directly with the Supabase SDK, then submit the returned `public_url` in `image_urls`.
+- Item images use the public `item-images` Supabase Storage bucket. Request a signed token from `/api/v1/uploads/sign`, upload directly with the Supabase SDK, then submit the returned `public_url` in `image_urls`.
 - The location seed list is an editable starting set and can be extended through SQL/admin tooling.
-- Approval reveals contact details only to the approved claimant through `GET /v1/items/:id`. The reporter marks the item `RESOLVED` after arranging the handoff.
+- Approval reveals contact details only to the approved claimant through `GET /api/v1/items/:id`. The reporter marks the item `RESOLVED` after arranging the handoff.

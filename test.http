@@ -4,7 +4,7 @@
 ### For the upload flow, upload the image to Supabase with the returned bucket/path/token,
 ### then paste the returned public_url into @imageUrl below.
 
-@baseUrl = http://localhost:3000/v1
+@baseUrl = http://localhost:3000/api/v1
 @reporterEmail = reporter@student.oauife.edu.ng
 @reporterPassword = ReporterPass123!
 @reporterVerificationToken = paste-reporter-verification-token
