@@ -7,7 +7,10 @@ const locations: ReadonlyArray<{ name: string; zone: string }> = [
   { name: 'Amphitheatre', zone: 'LECTURE_THEATRE' },
   { name: 'Ajose Lecture Theatre', zone: 'LECTURE_THEATRE' },
   { name: 'BOO Lecture Theatre', zone: 'LECTURE_THEATRE' },
-  { name: 'Auditorium 1 & 2', zone: 'LECTURE_THEATRE' },
+  { name: 'Auditorium 1', zone: 'LECTURE_THEATRE' },
+  { name: 'Auditorium 2', zone: 'LECTURE_THEATRE' },
+  { name: 'ODLT 1', zone: 'LECTURE_THEATRE' },
+  { name: 'ODLT 2', zone: 'LECTURE_THEATRE' },
   { name: 'Health Sciences Lecture Theatre (HSLT)', zone: 'LECTURE_THEATRE' },
   { name: 'Biological Sciences Lecture Theatre (BSLT)', zone: 'LECTURE_THEATRE' },
 
@@ -20,11 +23,9 @@ const locations: ReadonlyArray<{ name: string; zone: string }> = [
   { name: 'Mozambique Hall', zone: 'HALL_OF_RESIDENCE' },
   { name: 'Akintola Hall', zone: 'HALL_OF_RESIDENCE' },
   { name: 'Alumni Hall', zone: 'HALL_OF_RESIDENCE' },
-  { name: 'Murtala Muhammed Hall', zone: 'HALL_OF_RESIDENCE' },
 
   // Common Areas & Landmarks
   { name: 'SUB (Student Union Building)', zone: 'COMMON_AREA' },
-  { name: 'Awo Cafe', zone: 'COMMON_AREA' },
   { name: 'New Market (New Mak)', zone: 'COMMON_AREA' },
   { name: 'Sports Complex', zone: 'COMMON_AREA' },
   { name: 'Hezekiah Oluwasanmi Library', zone: 'COMMON_AREA' },
@@ -33,7 +34,7 @@ const locations: ReadonlyArray<{ name: string; zone: string }> = [
   { name: 'OAU Health Centre', zone: 'COMMON_AREA' },
 
   // Faculties & Academics
-  { name: 'ACE Building', zone: 'FACULTY' },
+  { name: 'Faculty of computing', zone: 'FACULTY' },
   { name: 'Faculty of Arts', zone: 'FACULTY' },
   { name: 'Faculty of Administration', zone: 'FACULTY' },
   { name: 'Faculty of Social Sciences', zone: 'FACULTY' },
