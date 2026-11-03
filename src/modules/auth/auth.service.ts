@@ -59,7 +59,7 @@ export async function registerStudent(input: RegistrationInput): Promise<{ id: s
 }
 
 export async function verifyStudentEmail(token: string): Promise<boolean> {
-  const query = ` UPDATE usersSET is_verified = TRUE, verification_token_hash = NULL, verification_expires_at = NULL
+  const query = ` UPDATE users SET is_verified = TRUE, verification_token_hash = NULL, verification_expires_at = NULL
   WHERE verification_token_hash = $1 AND verification_expires_at > NOW() AND is_verified = FALSE
   RETURNING id
   `;
@@ -110,4 +110,20 @@ export async function loginStudent(email: string, password: string): Promise<{
     user: safeUser,
     verified: true,
   };
+}
+
+export async function logoutStudent(userId: string, token: string): Promise<void> {
+  const decoded = jwt.decode(token);
+  if (typeof decoded !== 'object' || decoded === null || typeof decoded.exp !== 'number') {
+    throw new Error('Token does not include an expiration timestamp.');
+  }
+
+  await pool.query(
+    `
+      INSERT INTO revoked_tokens (user_id, token_hash, expires_at)
+      VALUES ($1, $2, TO_TIMESTAMP($3))
+      ON CONFLICT (user_id, token_hash) DO NOTHING
+    `,
+    [userId, hashToken(token), decoded.exp],
+  );
 }

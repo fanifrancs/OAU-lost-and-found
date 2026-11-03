@@ -4,11 +4,11 @@
 ### To upload an image, use the returned Supabase bucket/path/token, then copy public_url into @imageUrl.
 
 @baseUrl = http://localhost:3000/api/v1
-@reporterEmail = fanikufran6@gmail.com
-@reporterPassword = SECURE_PASSWORD123!
+@reporterEmail = francisfaniku@student.oauife.edu.ng
+@reporterPassword = W43jmk/43432!
 @reporterVerificationToken = paste-reporter-verification-token
 @claimantEmail = claimant@student.oauife.edu.ng
-@claimantPassword = SECURE_PASSWORD123!
+@claimantPassword = W43jmk/43432!
 @claimantVerificationToken = paste-claimant-verification-token
 @imageUrl = paste-uploaded-public-url
 
@@ -44,6 +44,11 @@ Content-Type: application/json
   "email": "{{reporterEmail}}",
   "password": "{{reporterPassword}}"
 }
+
+### Logout reporter
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{loginReporter.response.body.$.data.token}}
+Accept: application/json
 
 ### Register claimant account
 # @name registerClaimant

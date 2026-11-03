@@ -1,6 +1,9 @@
+import { createHash } from 'node:crypto';
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/db';
+
+const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 export async function authenticateToken(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -10,6 +13,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
       return;
     }
 
+    const token = authorization.slice(7).trim();
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Authentication is not configured.' } });
@@ -19,7 +23,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
     // The middleware first checks that it starts with 'Bearer '. That prefix
     // is 7 characters long (Bearer plus a space), so authorization.slice(7)
     // removes it and returns just the token for jwt.verify(...).
-    const decoded = jwt.verify(authorization.slice(7), secret);
+    const decoded = jwt.verify(token, secret);
 
     // decoded is expected to be a payload object from a valid JWT,
     // roughly like this:
@@ -39,6 +43,13 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
     
     if (typeof decoded === 'string' || typeof decoded.sub !== 'string') {
       res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'The bearer token is invalid or expired.' } });
+      return;
+    }
+
+    const revokedQuery = 'SELECT 1 FROM revoked_tokens WHERE token_hash = $1 AND expires_at > NOW() LIMIT 1';
+    const revokedResult = await pool.query(revokedQuery, [hashToken(token)]);
+    if (revokedResult.rowCount && revokedResult.rowCount > 0) {
+      res.status(401).json({ success: false, error: { code: 'TOKEN_REVOKED', message: 'This session has been logged out.' } });
       return;
     }
 

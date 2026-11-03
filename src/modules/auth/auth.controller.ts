@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { loginStudent, registerStudent, verifyStudentEmail } from './auth.service';
+import { loginStudent, logoutStudent, registerStudent, verifyStudentEmail } from './auth.service';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -114,5 +114,32 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Unable to log in right now.' } });
+  }
+}
+
+export async function logoutHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const authorization = req.headers.authorization;
+    if (!authorization || !authorization.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'A bearer token is required.' } });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'You must be signed in to log out.' } });
+      return;
+    }
+
+    const token = authorization.slice(7).trim();
+    if (!token) {
+      res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'A valid bearer token is required.' } });
+      return;
+    }
+
+    await logoutStudent(req.user.id, token);
+    res.status(200).json({ success: true, message: 'Logged out successfully.' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Unable to log out right now.' } });
   }
 }

@@ -5,7 +5,7 @@ const port = Number(process.env.PORT) || 3000;
 const host = process.env.HOST || '0.0.0.0';
 
 const server = app.listen(port, host, () => {
-  console.info(`OAU Lost & Found API listening on http://${host}:${port}`);
+  console.info(`Server listening on http://${host}:${port}`);
 });
 
 function shutdown(signal: string): void {

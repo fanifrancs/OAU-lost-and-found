@@ -24,6 +24,7 @@ In development, if SMTP is not configured, verification links are printed to the
 | POST | `/api/v1/auth/register` | No | Register an OAU email account |
 | GET | `/api/v1/auth/verify-email?token=...` | No | Verify email |
 | POST | `/api/v1/auth/login` | No | Sign in and receive JWT |
+| POST | `/api/v1/auth/logout` | Yes | Revoke the current bearer token and end the session |
 | GET | `/api/v1/items` | Yes | Search and paginate item feed |
 | POST | `/api/v1/items` | Yes | Report a lost or found item |
 | GET | `/api/v1/items/:id` | Yes | Item detail; approved claimant contact reveal |

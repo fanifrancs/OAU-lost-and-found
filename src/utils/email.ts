@@ -46,7 +46,8 @@ export async function sendVerificationEmail(email: string, token: string): Promi
     to: email,
     subject: 'Verify your OAU Lost & Found account',
     text: `Verify your account using this link: ${verificationUrl}\nThis link expires in ${ttlHours} hours.`,
-  });
+  })
+  console.info(`Development verification link for ${email}: ${verificationUrl}`);
 }
 
 export async function sendClaimNotification(email: string, itemTitle: string): Promise<void> {
