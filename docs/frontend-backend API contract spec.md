@@ -50,6 +50,23 @@ Request body:
 
 `200 OK` returns a JWT and a safe user summary (`id`, `full_name`, `email`, `department`). `401 INVALID_CREDENTIALS` covers an incorrect email/password. `403 ACCOUNT_UNVERIFIED` means the account must be activated before login. JWT expiry and renewal behavior are determined by the service configuration.
 
+### 1.4 Student logout
+
+`POST /auth/logout` — Authentication required.
+
+Invalidates the current bearer token by storing its hash in the server-side revocation list. The request contains no JSON body; clients send the JWT in the `Authorization: Bearer <JWT>` header.
+
+`200 OK` returns a success envelope with a human-readable message:
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully."
+}
+```
+
+`401 UNAUTHENTICATED` is returned when the bearer token is missing, malformed, expired, or invalid. If the token was previously revoked, the server responds with `401 TOKEN_REVOKED` and the message `This session has been logged out.`.
+
 ## 2. Supabase Storage image uploads (`/uploads`)
 
 Item images are stored in a Supabase Storage bucket configured for public read access. The bucket name and allowed image MIME types / maximum file size are deployment configuration. The backend uses server-side Supabase credentials to mint upload permissions; the mobile app must never receive a Supabase service-role key.
