@@ -17,6 +17,11 @@ app.get('/health', (_req, res) => {
     res.status(200).json({ success: true, data: { status: 'ok' } });
 });
 
+app.get('/', (_req, res) => {
+    res.redirect('/health');
+});
+
+// endpoints
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/items', itemRoutes);
 // 'claims' removed from the path to avoid redundancy since the
