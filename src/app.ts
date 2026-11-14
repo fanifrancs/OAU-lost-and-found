@@ -19,7 +19,10 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/items', itemRoutes);
-app.use('/api/v1/claims', claimRoutes);
+// 'claims' removed from the path to avoid redundancy since the
+// claimRoutes already handle '/claims' and '/items/:id/claims'
+// endpoints.
+app.use('/api/v1/', claimRoutes);
 app.use('/api/v1/locations', locationRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 
