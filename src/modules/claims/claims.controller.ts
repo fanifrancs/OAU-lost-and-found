@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { sendClaimNotification } from '../../utils/email';
 import { createClaim, getClaim, getItemClaims, reviewClaim } from './claims.service';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,11 +35,6 @@ export async function submitClaimHandler(req: Request, res: Response): Promise<v
     if (result === 'RESOLVED') { res.status(409).json({ success: false, error: { code: 'ITEM_NOT_OPEN', message: 'This item has already been resolved.' } }); return; }
     if (result === 'APPROVED_EXISTS') { res.status(409).json({ success: false, error: { code: 'ITEM_NOT_OPEN', message: 'A claim for this item has already been approved.' } }); return; }
 
-    try {
-      await sendClaimNotification(result.reporterEmail, result.itemTitle);
-    } catch (notificationError) {
-      console.error('Claim was recorded but reporter notification failed:', notificationError);
-    }
     res.status(201).json({ success: true, message: 'Claim request submitted successfully.', data: { claim_id: result.id, status: result.status } });
   } catch (error) {
     if (errorCode(error) === '23505') {
