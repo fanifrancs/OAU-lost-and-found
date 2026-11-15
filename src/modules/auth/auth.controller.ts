@@ -51,7 +51,9 @@ export async function registerHandler(req: Request, res: Response): Promise<void
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful. Please check your OAU email to verify your account.',
+      message: process.env.EMAIL_VERIFICATION_ENABLED === 'true'
+        ? 'Registration successful. Please check your OAU email to verify your account.'
+        : 'Registration successful. You can now log in.',
       data: { user_id: user.id, email: user.email },
     });
   } catch (error) {

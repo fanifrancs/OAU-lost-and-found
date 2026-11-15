@@ -1,6 +1,6 @@
 # OAU Campus Lost & Found API
 
-TypeScript/Express REST API backed by PostgreSQL. All API routes use the `/api/v1` prefix. Public item information requires a verified user's bearer JWT; reporter contact details are returned only to a claimant whose claim for that item has been approved.
+TypeScript/Express REST API backed by PostgreSQL. All API routes use the `/api/v1` prefix. Public item information requires a user's bearer JWT; reporter contact details are returned only to a claimant whose claim for that item has been approved.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ TypeScript/Express REST API backed by PostgreSQL. All API routes use the `/api/v
 4. Run `npm run db:migrate` and `npm run db:seed`.
 5. Run `npm run dev` for local development or `npm run build && npm start` for production.
 
-In development, if SMTP is not configured, verification links are printed to the server log. Production requires SMTP settings. Set `FRONTEND_VERIFICATION_URL` to a frontend page that accepts a `token` query parameter, or leave it empty to use the API verification URL.
+Email verification is disabled by default (`EMAIL_VERIFICATION_ENABLED=false`), so users can register and log in without SMTP. Set it to `true` to require email verification; configure SMTP settings for production. Set `FRONTEND_VERIFICATION_URL` to a frontend page that accepts a `token` query parameter, or leave it empty to use the API verification URL. In development, if SMTP is not configured, verification links are printed to the server log.
 
 ## API routes
 

@@ -61,7 +61,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
       res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'The account for this token no longer exists.' } });
       return;
     }
-    if (!user.is_verified) {
+    if (process.env.EMAIL_VERIFICATION_ENABLED === 'true' && !user.is_verified) {
       res.status(403).json({ success: false, error: { code: 'ACCOUNT_UNVERIFIED', message: 'Verify your OAU email before accessing this endpoint.' } });
       return;
     }

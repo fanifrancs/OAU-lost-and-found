@@ -5,6 +5,7 @@ import { pool } from '../../config/db';
 import { sendVerificationEmail } from '../../utils/email';
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
+const isEmailVerificationEnabled = (): boolean => process.env.EMAIL_VERIFICATION_ENABLED === 'true';
 
 export interface RegistrationInput {
   fullName: string;
@@ -17,7 +18,8 @@ export interface RegistrationInput {
 }
 
 export async function registerStudent(input: RegistrationInput): Promise<{ id: string; email: string }> {
-  const token = randomBytes(32).toString('hex');
+  const verificationEnabled = isEmailVerificationEnabled();
+  const token = verificationEnabled ? randomBytes(32).toString('hex') : null;
   const passwordHash = await bcrypt.hash(input.password, 12);
   const ttlHours = Number(process.env.VERIFICATION_TOKEN_TTL_HOURS) || 24;
   const client = await pool.connect();
@@ -25,11 +27,10 @@ export async function registerStudent(input: RegistrationInput): Promise<{ id: s
   try {
     await client.query('BEGIN');
 
-    // ($9 * INTERVAL '1 hour') is used to set the verification_expires_at column to the current time plus the TTL in hours. INTERVAL is a data type for a length of time—a duration, rather than a specific date or moment.
-    // $9 represents the ttlHours parameter, which is passed to the query as an argument. This allows the TTL to be dynamically set based on the environment variable or default value.
+    // Only set an expiry when verification is enabled.
     const query = `
-      INSERT INTO users (full_name, email, phone_number, whatsapp_number, matric_number, department, password_hash, verification_token_hash, verification_expires_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + ($9 * INTERVAL '1 hour'))
+      INSERT INTO users (full_name, email, phone_number, whatsapp_number, matric_number, department, password_hash, is_verified, verification_token_hash, verification_expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $10::boolean THEN NOW() + ($11 * INTERVAL '1 hour') ELSE NULL END)
       RETURNING id, email
     `;
     const values = [
@@ -40,13 +41,16 @@ export async function registerStudent(input: RegistrationInput): Promise<{ id: s
       input.matricNumber,
       input.department,
       passwordHash,
-      hashToken(token),
+      !verificationEnabled,
+      token ? hashToken(token) : null,
+      verificationEnabled,
       ttlHours,
     ];
     const result = await client.query<{ id: string; email: string }>(query, values);
 
-    // there should be a resend verification email function in case of token expiration, but it is not implemented yet.
-    await sendVerificationEmail(result.rows[0].email, token);
+    if (verificationEnabled && token) {
+      await sendVerificationEmail(result.rows[0].email, token);
+    }
 
     await client.query('COMMIT');
     return result.rows[0];
@@ -94,7 +98,7 @@ export async function loginStudent(email: string, password: string): Promise<{
     email: user.email,
     department: user.department,
   };
-  if (!user.is_verified) return { token: '', user: safeUser, verified: false };
+  if (isEmailVerificationEnabled() && !user.is_verified) return { token: '', user: safeUser, verified: false };
 
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not configured.');
