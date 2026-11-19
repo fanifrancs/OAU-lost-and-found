@@ -1,7 +1,7 @@
 # Frontend–Backend API Contract Specification
 
 **Project:** OAU Campus Lost & Found Backend
-**Base URL:** `https://api.oaulostandfound.com/api/v1`
+**Base URL:** `https://oau-lost-and-found.onrender.com/`
 **Authentication:** Send `Authorization: Bearer <JWT>` for authenticated endpoints.
 **Content type:** JSON requests use `Content-Type: application/json`.
 **Response envelope:** Successful responses use `{"success":true,"data":...}` and failures use `{"success":false,"error":{"code":"...","message":"..."}}`. A `message` may also accompany successful responses.
